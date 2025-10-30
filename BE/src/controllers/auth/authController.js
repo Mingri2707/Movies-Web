@@ -3,7 +3,7 @@ import User from "/WebAnime/BE/src/models/User.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import Session from "../../models/Session.js";
-const ACCESS_TOKEN_TTL = "30m";
+const ACCESS_TOKEN_TTL = "30s";
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000;
 export const signUp = async (req, res) => {
   try {
@@ -28,7 +28,7 @@ export const signUp = async (req, res) => {
       username,
       hashedPassword,
       email,
-      displayName: `${firstName} ${lastName}`,
+      displayName: `${lastName} ${firstName}`,
     });
 
     // return
@@ -109,4 +109,40 @@ export const signOut = async (req, res) => {
     console.error("Lỗi khi gọi signOut", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
+};
+// tạo access token mới từ refresh token
+export const refreshToken = async (req, res) => {
+  try {
+    // lấy refreshToken từ cookie
+    const token = req.cookies?.refreshToken;
+    if (!token) {
+      return res.status(401).json({ message: "Token không tồn tại" });
+    }
+    // so sánh refreshToken trong db
+    const session = await Session.findOne({ refreshToken: token });
+    if (!session) {
+      return res.status(403).json({ message: "Token không hợp lệ" });
+    }
+    // kiểm tra token đã hết hạn chưa
+    if (session.expiresAt < new Date()) {
+      // xóa session
+      await Session.deleteOne({ _id: session._id });
+      return res.status(401).json({ message: "Token đã hết hạn" });
+    }
+    // tạo access token mới
+    const accessToken = jwt.sign(
+      { userId: session.userId._id },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: ACCESS_TOKEN_TTL }
+    );
+    // trả access token về
+    return res.status(200).json({ accessToken });
+  } catch (error) {
+    console.error("Lỗi khi gọi refreshToken", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+export const test = async (req, res) => {
+  return res.sendStatus(204);
 };

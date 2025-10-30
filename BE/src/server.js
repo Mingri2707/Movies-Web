@@ -12,19 +12,20 @@ import { fileURLToPath } from "url";
 import authRoute from "./routes/auth/authRoute.js";
 import cookieParser from "cookie-parser";
 import { protectedRoute } from "./middlewares/authMiddleware.js";
+import cors from "cors";
 dotenv.config();
 
 // Lấy __dirname khi sử dụng ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const PORT = process.env.PORT || 5001;
 const app = express();
 
 // Middlewares
+app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
-
-connectDB();
 
 // Middleware để phục vụ các file trong thư mục 'uploads'
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -40,6 +41,8 @@ app.use("/api/auth", authRoute);
 // private routes
 app.use(protectedRoute);
 app.use("/api/users", userRoute);
-app.listen(5001, () => {
-  console.log("Server chạy trên cổng 5001");
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server chạy trên cổng ${PORT}`);
+  });
 });
